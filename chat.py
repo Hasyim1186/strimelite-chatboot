@@ -1,6 +1,6 @@
-
-import os
+import streamlit as st
 import google.generativeai as genai
+import os
 
 # Konfigurasi API key
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -51,31 +51,39 @@ model = genai.GenerativeModel(
     system_instruction=system_instruction
 )
 
-app = Flask(__name__)
+st.set_page_config(page_title="Chat dengan Gemini 1.5 Pro", page_icon=":robot_face:", layout="centered")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+st.markdown("<h1 style='text-align: center; color: #311B92;'>Chat MentBoot</h1>", unsafe_allow_html=True)
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    data = request.get_json()
-    message = data.get('message', '')
-    
-    # Check for specific keywords related to self-harm or suicide
-    keywords = ['bunuh diri', 'mati', 'mengakhiri hidup', 'tidak mau hidup', 'gantung diri']
-    if any(keyword in message.lower() for keyword in keywords):
-        return jsonify({"redirect": url_for('psikolog')})
-    
-    history = [{"role": "user", "parts": [message]}]
-    response = model.start_chat(history=history).send_message(message)
+chat_messages = st.empty()
+user_input = st.text_input("Enter Your Message", "")
+
+if "message_log" not in st.session_state:
+    st.session_state.message_log = []
+
+def add_message(role, text):
+    st.session_state.message_log.append({"role": role, "text": text})
+
+def display_messages():
+    chat_html = "<div style='height: 70vh; overflow-y: auto; background-color: #f9f9f9; padding: 20px; border-radius: 10px;'>"
+    for msg in st.session_state.message_log:
+        if msg['role'] == 'user':
+            chat_html += f"<div style='text-align: right; margin-bottom: 10px;'><span style='background-color: #4a3aff; color: white; padding: 10px; border-radius: 10px 10px 0 10px;'>{msg['text']}</span></div>"
+        else:
+            chat_html += f"<div style='text-align: left; margin-bottom: 10px;'><span style='background-color: #e0e0e0; color: #333; padding: 10px; border-radius: 10px 10px 10px 0;'>{msg['text']}</span></div>"
+    chat_html += "</div>"
+    chat_messages.markdown(chat_html, unsafe_allow_html=True)
+
+if user_input:
+    add_message("user", user_input)
+    display_messages()
+
+    history = [{"role": "user", "parts": [user_input]}]
+    response = model.start_chat(history=history).send_message(user_input)
     model_response = response.text
 
-    return jsonify({"response": model_response})
+    add_message("model", model_response)
+    display_messages()
+    st.experimental_rerun()
 
-@app.route('/psikolog')
-def psikolog():
-    return render_template('psikolog.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
+display_messages()
