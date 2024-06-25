@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, url_for # type: ignore
+
 import os
 import google.generativeai as genai
 
